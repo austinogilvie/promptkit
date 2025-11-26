@@ -305,6 +305,7 @@ If a class already follows these dunder method guidelines, the skill should:
 | `references/examples/bad_example.py` | Anti-patterns to avoid. Check your work against these. |
 | `references/examples/subclass_example.py` | How to handle subclasses of common library types (`dict`, `Path`, etc.). |
 | `references/dunder_cheatsheet.md` | Quick reference for which dunders to implement, avoid, and how to reason about them. |
+| `references/field_ranking_heuristic.md` | Guidelines for selecting high-value fields to include in `__repr__` and `__str__`. |
 
 **When implementing dunders, open the relevant example file first.**
 
