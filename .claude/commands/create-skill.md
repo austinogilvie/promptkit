@@ -4,7 +4,9 @@ argument-hint: [skill-name] [description] [--personal|--project]
 allowed-tools: ["Read", "Write", "Bash", "Glob"]
 ---
 
-Create a Claude Code skill.
+Create a reusable Claude Code skill — a portable capability that will be used in *other* projects, not the current repo.
+
+Do NOT analyze the current repo for how to use the skill's subject matter. Instead, create a generic, reusable skill that could apply to any project needing that capability. The skill should be self-contained and context-independent.
 
 **Inputs:** `$ARGUMENTS` parsed as: SKILL_NAME (kebab-case, max 64 chars), DESCRIPTION (quoted string, max 1024 chars)
 **Flags:** `--personal` (default: ~/.claude/skills/) or `--project` (.claude/skills/)
