@@ -147,7 +147,7 @@ How to avoid this in the future (if applicable).
 [app] status
 ```
 Expected output when healthy:
-```
+```text
 Status: Running
 Database: Connected
 Cache: Active
@@ -158,7 +158,7 @@ Cache: Active
 [app] config validate
 ```
 Expected output:
-```
+```text
 Configuration valid
 ```
 

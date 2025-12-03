@@ -51,6 +51,10 @@ def check_placeholder_text(content: str, filepath: str) -> list[Issue]:
     for line_num, line in enumerate(content.split('\n'), 1):
         for pattern, message in patterns:
             if re.search(pattern, line, re.IGNORECASE):
+                # Skip if the match is inside backticks (inline code or documenting placeholders)
+                # Check for `...pattern...` or documenting the pattern itself
+                if re.search(r'`[^`]*' + pattern + r'[^`]*`', line, re.IGNORECASE):
+                    continue
                 issues.append(Issue(filepath, line_num, 'error', message))
 
     return issues

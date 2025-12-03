@@ -1,6 +1,7 @@
 ---
 name: readme-updater
 description: "Keep README.md files current with project changes. PROACTIVELY check if README needs updates after code changes, new features, dependency changes, environment variables, or configuration updates. For creating new READMEs from scratch or comprehensive documentation, use docs-writer instead."
+version: 1.0.0
 ---
 
 # README Updater

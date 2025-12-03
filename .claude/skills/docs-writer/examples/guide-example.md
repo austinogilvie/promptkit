@@ -25,7 +25,7 @@ datasync init
 ```
 
 Enter your cloud credentials when prompted:
-```
+```text
 ? Cloud provider: AWS S3
 ? Access Key ID: ********
 ? Secret Access Key: ********
@@ -41,7 +41,7 @@ datasync push ./data.csv
 ```
 
 Output:
-```
+```text
 Uploading data.csv...
 ✓ Uploaded: data.csv (1.2 MB) → s3://my-backup-bucket/data.csv
 ```
@@ -102,7 +102,7 @@ datasync --version
 ```
 
 Expected output:
-```
+```text
 datasync v2.1.0 (build abc123)
 ```
 
@@ -264,7 +264,7 @@ datasync inspect s3://bucket/sensitive-data.csv
 ```
 
 Output:
-```
+```text
 File: sensitive-data.csv
 Size: 1.2 MB (encrypted: 1.4 MB)
 Encryption: AES-256-GCM
@@ -317,7 +317,7 @@ ignore:
 
 Create `.datasyncignore` in your project:
 
-```
+```gitignore
 # Dependencies
 node_modules/
 vendor/
