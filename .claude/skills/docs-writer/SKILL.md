@@ -1,6 +1,6 @@
 ---
 name: docs-writer
-description: "Generate comprehensive technical documentation including API references, user guides, architecture docs, ADRs, and runbooks. Use when creating new READMEs from scratch, multi-file documentation from code, OpenAPI specs, deployment guides, or architecture decision records. For updating existing READMEs, use readme-updater instead."
+description: "Generate technical documentation including READMEs, API references, user guides, architecture docs, ADRs, and runbooks. Use for creating any new documentation from scratch—even simple READMEs benefit from structured templates. For updating existing READMEs, use readme-updater instead."
 version: 1.0.0
 ---
 
