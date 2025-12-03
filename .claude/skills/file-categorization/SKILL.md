@@ -1,11 +1,6 @@
 ---
 name: file-categorization
-description: >
-  Defines the standard 8-category taxonomy for classifying project files: Config, Tests, Docs, Scripts,
-  Source Code, Data, AI Tooling, and Other. REFERENCE THIS SKILL whenever categorizing files, auditing
-  project structure, or answering "what types of files are here." Apply these categories and patterns
-  whether using the bundled script or manual analysis. The skill provides both a methodology (category
-  definitions, pattern rules) and an optional automation script.
+description: "Defines the standard 8-category taxonomy for classifying project files: Config, Tests, Docs, Scripts, Source Code, Data, AI Tooling, and Other. REFERENCE THIS SKILL whenever categorizing files, auditing project structure, or answering 'what types of files are here.' Apply these categories and patterns whether using the bundled script or manual analysis."
 ---
 
 # File Categorization
