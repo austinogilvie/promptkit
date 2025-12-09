@@ -32,6 +32,7 @@ env/
 # Project-specific directories
 tmp/
 spec/
+issues/
 
 # Data files (avoid committing large sample data)
 **/data/
