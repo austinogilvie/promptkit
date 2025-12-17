@@ -1,6 +1,16 @@
+<!--
+PROGRESSIVE DISCLOSURE NOTE:
+This file is NOT injected on every prompt. Instead, a minimal stub (PM_STUB.md)
+is injected, and this full contract is read on-demand by PM commands when
+detailed conventions are needed.
+
+To update the stub: templates/PM_STUB.md
+To update full conventions: this file (PM_CONTRACT.md)
+-->
+
 # Good PM Contract
 
-> This document defines the vocabulary, conventions, and rules for filesystem-based project management. It is auto-injected into conversations via hook.
+> This document defines the vocabulary, conventions, and rules for filesystem-based project management. It is loaded on-demand by PM commands (see PM_STUB.md for the lightweight context injected on every prompt).
 
 ---
 
@@ -78,7 +88,8 @@ Use standard GitHub-flavored markdown checkboxes:
 ```
 .good-pm/
 ├── context/
-│   ├── PM_CONTRACT.md          # This file (auto-injected)
+│   ├── PM_CONTRACT.md          # This file (loaded on-demand by commands)
+│   ├── PM_STUB.md              # Lightweight stub (injected every prompt)
 │   └── session-update.md       # Stop hook instructions
 ├── session/
 │   └── current.md              # Ephemeral work state (auto-injected if has content)
@@ -164,7 +175,7 @@ The session context file (`.good-pm/session/current.md`) tracks ephemeral work s
 
 ### Injection Behavior
 
-- Session context is auto-injected on `UserPromptSubmit` (after PM_CONTRACT.md)
+- Session context is auto-injected on `UserPromptSubmit` (after PM_STUB.md)
 - Only injected if file contains meaningful content (not just placeholders)
 - Updated via the Stop hook before conversation ends
 
@@ -174,46 +185,48 @@ The Stop hook prompts for session context review before ending conversations. Ap
 
 ---
 
-## Selective Context Loading
+## Progressive Disclosure
 
-Context injection is **conditional** to preserve token budget and reduce noise in non-PM work.
+Context injection uses **progressive disclosure** to minimize token overhead while preserving full functionality.
 
-### When Context Is Injected
+### Two-Tier Loading Model
 
-| Condition | Context Injected |
-|-----------|------------------|
-| `.good-pm/` directory exists | Yes - full PM context |
-| No `.good-pm/` directory | No - silent exit |
+| File | When Loaded | Size | Purpose |
+|------|-------------|------|---------|
+| PM_STUB.md | Every prompt (via hook) | ~20 lines | Quick reference, command list |
+| PM_CONTRACT.md | On-demand (by commands) | ~270 lines | Full conventions and rules |
 
 ### Loading Decision Matrix
 
 | Scenario | What Loads |
 |----------|------------|
 | Non-PM directory | Nothing (hook exits silently) |
-| PM project, new conversation | PM_CONTRACT.md |
-| PM project, session has content | PM_CONTRACT.md + session context |
-| PM project, running PM command | Full context available |
+| PM project, any prompt | PM_STUB.md (~400 tokens) |
+| PM project, session has content | PM_STUB.md + session context |
+| PM project, running PM command | Command reads PM_CONTRACT.md |
 
-### Why Selective Loading Matters
+### Why Progressive Disclosure
 
-- **Token efficiency:** PM context is ~200 lines; unnecessary for non-PM tasks
-- **Noise reduction:** Unrelated context can confuse or distract
+- **Token efficiency:** ~90% reduction in per-prompt overhead for non-PM work
+- **Noise reduction:** Detailed conventions only loaded when relevant
 - **Project isolation:** Each project's PM state stays separate
 
 ### How It Works
 
-The `good-pm-context.sh` hook checks for `.good-pm/` directory at the start:
+The `good-pm-context.sh` hook injects the lightweight stub:
 
 ```bash
-if [ ! -d ".good-pm" ]; then
-  exit 0  # Not a PM project, inject nothing
+STUB="$GOODPM_DIR/context/PM_STUB.md"
+
+if [ -f "$STUB" ]; then
+  cat "$STUB"    # ~20 lines instead of ~270
 fi
 ```
 
-This means:
-- **PM commands still work** — they run in the project directory where `.good-pm/` exists
-- **Non-PM work is unaffected** — no PM context clutters the conversation
-- **Subdirectories inherit** — running from `src/` in a PM project still gets context (if `.good-pm/` is in cwd)
+PM commands explicitly read this full contract when detailed conventions are needed:
+- **PM commands still work** — they load PM_CONTRACT.md as part of execution
+- **Non-PM work is unaffected** — only minimal stub context is injected
+- **Subdirectories inherit** — running from `src/` in a PM project still gets stub context
 
 ---
 

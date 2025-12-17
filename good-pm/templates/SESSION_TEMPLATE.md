@@ -1,3 +1,10 @@
+---
+pm_work_detected: false
+has_content: false
+last_updated: null
+active_spec: null
+---
+
 # Session Context
 
 > Ephemeral work state for context continuity between conversations.
@@ -5,36 +12,18 @@
 
 ---
 
-## Active Spec
+## Current Focus
 
-<!-- Currently focused specification. Example: SPEC_user-authentication.md -->
-
-(none)
+[What are you working on?]
 
 ---
 
-## In Progress Issues
+## Key Decisions
 
-<!-- Issues being actively worked on. Example: 003-implement-oauth-flow.md -->
-
-(none)
+[Important decisions made this session]
 
 ---
 
 ## Blockers
 
-<!-- Obstacles preventing completion. Example: Waiting on API key from client -->
-
-(none)
-
----
-
-## Notes for Next Session
-
-<!-- Context needed to resume work. What should future-me know to continue effectively? -->
-
-(none)
-
----
-
-*Updated by Stop hook. See [PM_CONTRACT.md](../context/PM_CONTRACT.md) for the Future Self test.*
+[Any blockers or open questions]

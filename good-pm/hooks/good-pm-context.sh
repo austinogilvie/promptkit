@@ -1,9 +1,11 @@
 #!/bin/bash
 # Good PM Context Injection Hook
-# Conditionally injects PM context based on project detection
+# Injects lightweight PM stub on UserPromptSubmit events
 #
-# This script is triggered by the UserPromptSubmit hook event.
-# It only outputs context when the current directory is a Good PM project.
+# Progressive Disclosure (P0):
+# - Injects PM_STUB.md (~30 lines) instead of full PM_CONTRACT.md (~270 lines)
+# - PM commands auto-load full contract when needed (Decision D1)
+# - Reduces per-prompt token overhead by ~90%
 #
 # Installation: Copied to .claude/hooks/ by /good-pm:setup
 #
@@ -13,7 +15,7 @@
 # - Preserves token budget for unrelated tasks
 
 GOODPM_DIR=".good-pm"
-CONTRACT="$GOODPM_DIR/context/PM_CONTRACT.md"
+STUB="$GOODPM_DIR/context/PM_STUB.md"
 SESSION="$GOODPM_DIR/session/current.md"
 
 # Early exit if not in a Good PM project
@@ -22,19 +24,20 @@ if [ ! -d "$GOODPM_DIR" ]; then
   exit 0
 fi
 
-# Inject PM Contract if it exists
-if [ -f "$CONTRACT" ]; then
+# Inject PM Stub if it exists (lightweight context - full contract loaded on-demand by commands)
+if [ -f "$STUB" ]; then
   echo ""
   echo "[Good PM Context]"
-  cat "$CONTRACT"
+  cat "$STUB"
   echo ""
 fi
 
-# Inject session context if it exists and has meaningful content
-# (not just the template with "(none)" placeholders)
+# Inject session context if it exists and has_content frontmatter is true
+# Per Decision D4: assumes frontmatter exists (users re-run setup after upgrade)
 if [ -f "$SESSION" ]; then
-  # Check if file has content beyond template placeholders
-  if grep -qvE '^\(none\)$|^#|^>|^-+$|^<!--.*-->$|^\*|^$' "$SESSION" 2>/dev/null; then
+  # Check frontmatter for has_content: true flag
+  HAS_CONTENT=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$SESSION" | grep '^has_content:' | grep -c 'true')
+  if [[ "$HAS_CONTENT" -gt 0 ]]; then
     echo ""
     echo "[Session Context]"
     cat "$SESSION"

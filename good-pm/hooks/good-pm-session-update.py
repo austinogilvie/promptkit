@@ -15,9 +15,33 @@ Exit codes:
 """
 
 import json
-import os
+import re
 import sys
 from pathlib import Path
+
+
+def check_pm_work_detected(session_path: Path) -> bool:
+    """Check SESSION.md frontmatter for pm_work_detected flag (D4: assumes frontmatter exists)."""
+    if not session_path.exists():
+        return False
+
+    content = session_path.read_text()
+    frontmatter_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if not frontmatter_match:
+        return False  # No frontmatter = no PM work
+
+    frontmatter = frontmatter_match.group(1)
+    return 'pm_work_detected: true' in frontmatter
+
+
+def reset_pm_work_detected(session_path: Path) -> None:
+    """Reset pm_work_detected flag to false after processing."""
+    if not session_path.exists():
+        return
+
+    content = session_path.read_text()
+    updated = content.replace('pm_work_detected: true', 'pm_work_detected: false')
+    session_path.write_text(updated)
 
 
 def load_transcript(transcript_path):
@@ -62,11 +86,6 @@ def main():
 
     stop_hook_active = hook_input.get("stop_hook_active", False)
 
-    # Prevent infinite loops - if we already blocked once, allow completion
-    if stop_hook_active:
-        print(json.dumps({"decision": "approve"}))
-        return 0
-
     # Check if we're in a Good PM project
     good_pm_dir = Path(".good-pm")
     if not good_pm_dir.exists():
@@ -79,6 +98,19 @@ def main():
 
     # If session directory doesn't exist, allow (older Good PM installation)
     if not session_file.parent.exists():
+        print(json.dumps({"decision": "approve"}))
+        return 0
+
+    # Prevent infinite loops - if we already blocked once, allow completion
+    # Reset pm_work_detected flag since the PM work cycle is complete (Bug fix: D2)
+    if stop_hook_active:
+        reset_pm_work_detected(session_file)
+        print(json.dumps({"decision": "approve"}))
+        return 0
+
+    # Early exit if no PM activity detected (Decision D2)
+    # This is the ralph-wiggum pattern: check state flag before expensive parsing
+    if not check_pm_work_detected(session_file):
         print(json.dumps({"decision": "approve"}))
         return 0
 
@@ -119,7 +151,9 @@ def main():
                 has_pm_activity = True
 
     # If no tools used and no PM activity, this is a casual conversation - don't block
+    # Reset flag (self-healing for stale pm_work_detected: true)
     if not has_tool_usage and not has_pm_activity:
+        reset_pm_work_detected(session_file)
         print(json.dumps({"decision": "approve"}))
         return 0
 
@@ -150,6 +184,8 @@ def main():
     if last_assistant_msg:
         lower_msg = last_assistant_msg.lower()
         if any(indicator in lower_msg for indicator in update_indicators):
+            # Session was updated, reset flag and approve
+            reset_pm_work_detected(session_file)
             print(json.dumps({"decision": "approve"}))
             return 0
 
