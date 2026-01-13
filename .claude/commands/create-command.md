@@ -1,10 +1,13 @@
 ---
 description: Create a new Claude Code Slash Command with standardized structure
-argument-hint: [name] [purpose]
-allowed-tools: Bash(mkdir:*), Bash(test:*)
+argument-hint: "[name] [purpose]"
+allowed-tools:
+  - "Bash(mkdir:*)"
+  - "Bash(test:*)"
 ---
 
 # /create-command
+
 
 ## Purpose
 
@@ -48,7 +51,7 @@ Single status line:
 
 ## Embedded Template
 
-```markdown
+````markdown
 ---
 description: {{PURPOSE}}
 argument-hint: [args]
@@ -82,11 +85,11 @@ argument-hint: [args]
 \`\`\`bash
 /{{NAME}} example-arg
 \`\`\`
-```
+````
 
 ## Examples
 
-```bash
+````bash
 # Basic usage
 /create-command analyze-deps "Analyze project dependencies for updates"
 # Output: STATUS=CREATED PATH=.claude/commands/analyze-deps.md
@@ -102,4 +105,4 @@ argument-hint: [args]
 # Missing arguments
 /create-command
 # Output: STATUS=FAIL ERROR="Command name is required"
-```
+````
