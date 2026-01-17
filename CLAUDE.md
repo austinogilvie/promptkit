@@ -1,7 +1,7 @@
 # PromptKit — Claude Code Configuration
 
 PromptKit is a personal toolbox of **Claude Code AI coding-agent tools** (agents, subagents, skills, slash commands, hooks, plugins, MCP integrations).
-Everything lives in: `~/code/github/hernamesbarbara/promptkit/`
+Everything lives in: `~/code/github/austinogilvie/promptkit/`
 
 Follow the patterns already present in `.claude/`.
 

@@ -4,7 +4,7 @@
   "description": "Filesystem-based project management for Claude Code with specs, issues, and automatic context injection.",
   "author": {
     "name": "promptkit",
-    "url": "https://github.com/hernamesbarbara/promptkit"
+    "url": "https://github.com/austinogilvie/promptkit"
   },
-  "homepage": "https://github.com/hernamesbarbara/promptkit"
+  "homepage": "https://github.com/austinogilvie/promptkit"
 }

@@ -16,7 +16,7 @@ promptkit provides reusable AI tooling components that extend Claude Code's capa
 
 ```bash
 # Clone the repository
-git clone https://github.com/hernamesbarbara/promptkit.git
+git clone https://github.com/austinogilvie/promptkit.git
 
 # Copy skills to your user-level Claude Code config
 cp -r promptkit/.claude/skills/* ~/.claude/skills/
