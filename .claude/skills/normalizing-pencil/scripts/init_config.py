@@ -71,7 +71,12 @@ def prompt_user(opts: dict) -> dict:
     if not scan_path:
         scan_path = opts["scan_path"]
 
-    template_choice = input("Seed from template? (minimal/cloakling/none) [none]: ").strip().lower()
+    available = sorted(
+        p.stem.replace("pencil-normalize.config.", "")
+        for p in TEMPLATES_DIR.glob("pencil-normalize.config.*.json")
+    )
+    choices = "/".join(available) if available else "none available"
+    template_choice = input(f"Seed from template? ({choices}/none) [none]: ").strip().lower()
     if not template_choice or template_choice == "none":
         return minimal_config(scan_path)
 
