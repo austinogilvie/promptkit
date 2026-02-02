@@ -1,74 +1,70 @@
 ---
-name: normalize-pencil
-description: Normalize Pencil/MCP-generated UI code to Cloakling’s design system (tokens, primitives, shadows, z-index, spacing).
+name: normalizing-pencil
+description: >-
+  Normalize Pencil/MCP-generated UI code to a project's design system tokens.
+  Use when reviewing Pencil output, after generating UI with Pencil MCP,
+  or when running design system compliance checks. Detects and rewrites
+  CSS variable references, Tailwind literal classes, shadows, and z-index.
 disable-model-invocation: true
-argument-hint: "[--check|--apply] [--fix-shadows] [--fix-z] [--fix-copy] [--strict] [path=frontend/src]"
+user-invocable: true
+argument-hint: "[--check|--apply] [--fix-shadows] [--fix-z] [--fix-copy] [--strict] [--config path] [path]"
+allowed-tools: ["Read", "Write", "Bash", "Glob", "Grep"]
 ---
 
-# normalize-pencil
+# normalizing-pencil
 
-Normalize Pencil/MCP-generated UI code into Cloakling’s design system.
+Normalize Pencil/MCP-generated UI code to your project's design system.
+
+## Prerequisites
+
+- Python 3.8+ with `docopt` (`pip install docopt`)
+- ripgrep (`brew install ripgrep` / `apt install ripgrep`)
+
+## First Run
+
+On first invocation the skill walks upward from CWD looking for `.pencil-normalize.config.json`. If no config is found it runs `scripts/init_config.py` interactively to scaffold one from built-in templates. The config file defines all project-specific token mappings (CSS vars, Tailwind literals, shadows, z-index).
 
 ## Invocation
 
-- `/normalize-pencil [path]`: show scan report + show unified diff preview (no writes)
-- `/normalize-pencil --apply [path]`: apply deterministic rewrites (writes files)
-- `/normalize-pencil --check [path]`: CI mode (non-zero / fail if changes needed)
-- `/normalize-pencil --apply --fix-shadows --fix-z --fix-copy [path]`: Apply strict normalization: tokens, shadow removal, z-index, & copy fixes
-- `/normalize-pencil --apply --strict [path]`: Shorthand for all fix passes (equivalent to --fix-shadows --fix-z --fix-copy)
+- `/normalizing-pencil [path]` -- scan report + diff preview (no writes)
+- `/normalizing-pencil --apply [path]` -- apply rewrites
+- `/normalizing-pencil --check [path]` -- CI mode (non-zero exit if changes needed)
+- `/normalizing-pencil --apply --strict [path]` -- all fix passes
+- `/normalizing-pencil --config path/to/config [path]` -- use explicit config
 
-Arguments:
-- `$ARGUMENTS` may include any combination of:
-  - `--apply`
-  - `--check`
-  - `--fix-shadows`
-  - `--fix-z`
-  - `--fix-copy`
-  - `--strict` (equivalent to --fix-shadows --fix-z --fix-copy)
-- `[path]` defaults to `frontend/src` if omitted.
+### Arguments
+
+- `--apply` -- write rewritten files (creates `.bak` backups)
+- `--check` -- exit non-zero if any Pencilisms remain (CI-friendly)
+- `--fix-shadows` -- rewrite `shadow-*` utilities per config
+- `--fix-z` -- rewrite z-index literals per config
+- `--fix-copy` -- rewrite hard-coded copy strings per config
+- `--strict` -- shorthand for `--fix-shadows --fix-z --fix-copy`
+- `--config` -- path to an explicit config file (skips CWD walk)
+- `[path]` -- directory to scan; defaults to `scan_path` from config
 
 ## What this skill enforces
 
-1) Detect "Pencilisms"
-   - `--pencil-*` css vars
-   - raw Tailwind literals (bg-white, text-gray-*, border-gray-*)
-   - shadow-* usage
-   - z-[9999] / z-50 etc
+1. **Detect Pencilisms** -- `--pencil-*` CSS vars, raw Tailwind literals (`bg-white`, `text-gray-*`, `border-gray-*`), `shadow-*` usage, z-index patterns (`z-[9999]`, `z-50`).
+2. **Rewrite tokens deterministically** -- replace detected patterns with project tokens per config mappings.
 
-2) Rewrite tokens deterministically
-   - Replace `var(--pencil-*)` with Cloakling tokens per [`reference.md`](reference.md)
-   - Replace a small allowlist of Tailwind literals with tokenized equivalents
+Does NOT do AST refactors (e.g. `<button>` to `<Button>`).
 
-This skill intentionally does NOT yet:
-- do AST refactors (e.g., `<button>` → `<Button>`) unless explicitly added later
-- attempt to "fix everything" beyond the deterministic mappings
+## Command behavior
 
-## Command behavior (required)
-
-Always run the scan first:
-
-1) `bash .claude/skills/normalize-pencil/scripts/scan.sh [path]`
-
-Then run token mapping using `.claude/skills/normalize-pencil/scripts/map_tokens.py`:
-
-- If `$ARGUMENTS` contains `--apply`:
-  2) `python3 .claude/skills/normalize-pencil/scripts/map_tokens.py apply [path] --backup`
-  3) Print list of changed files
-
-- Else if `$ARGUMENTS` contains `--check`:
-  2) `python3 .claude/skills/normalize-pencil/scripts/map_tokens.py check [path]`
-  3) If it fails, print the offender file list and exit
-
-- Else (default preview mode):
-  2) `python3 .claude/skills/normalize-pencil/scripts/map_tokens.py scan [path]`
-  3) Show unified diff previews (no writes)
+1. Run scan: `bash .claude/skills/normalize-pencil/scripts/scan.sh [path]`
+2. Run token mapping based on flags:
+   - `--apply`: `python3 scripts/map_tokens.py apply [path] --backup`
+   - `--check`: `python3 scripts/map_tokens.py check [path]`
+   - default: `python3 scripts/map_tokens.py scan [path]`
 
 ## Navigation
 
-- See [`reference.md`](reference.md) for authoritative mapping tables and ordered passes.
-- See [`examples.md`](examples.md) for before/after and recommended Pencil prompt templates.
+- [`reference.md`](reference.md) -- config format and mapping tables
+- [`examples.md`](examples.md) -- before/after examples
 
 ## Executables
-- Executables:
-- [`scripts/scan.sh`](scripts/scan.sh) — fast "Pencilism" scan report (ripgrep)
-- [`scripts/map_tokens.py`](scripts/map_tokens.py) — deterministic token replacement (preview/apply/check)
+
+- [`scripts/scan.sh`](scripts/scan.sh) -- fast Pencilism scan (ripgrep)
+- [`scripts/map_tokens.py`](scripts/map_tokens.py) -- deterministic token replacement
+- [`scripts/init_config.py`](scripts/init_config.py) -- interactive config scaffolding
