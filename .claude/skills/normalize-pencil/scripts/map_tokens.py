@@ -2,50 +2,105 @@
 """
 map_tokens.py
 
-Deterministically rewrites "Pencilisms" into Cloakling design system tokens.
+Deterministically rewrites "Pencilisms" into project design system tokens.
+
+Reads token mappings from a per-project config file (.pencil-normalize.config.json)
+discovered via CWD-upward walk or explicit --config flag.
 
 Primary purpose:
-- Replace CSS variable references like var(--pencil-accent) -> var(--accent-interactive)
-- Replace common Tailwind literal classes like bg-white -> bg-[var(--surface-level-1)]
-- Replace z-index and shadow Tailwind classes optionally (limited support; scan.sh is primary for detection)
+- Replace CSS variable references like var(--pencil-accent) -> var(--your-token)
+- Replace common Tailwind literal classes like bg-white -> bg-[var(--your-token)]
+- Replace z-index and shadow Tailwind classes optionally
 
 Safe by default:
 - Prints a unified diff for all changes
 - Does NOT write files unless --apply is passed
 
 Usage:
-  map_tokens.py scan [<path>] [--ext=<exts>] [--include-tests] [--fix-shadows] [--fix-z] [--fix-copy] [--strict]
-  map_tokens.py apply [<path>] [--ext=<exts>] [--include-tests] [--backup] [--fix-shadows] [--fix-z] [--fix-copy] [--strict]
-  map_tokens.py check [<path>] [--ext=<exts>] [--include-tests] [--fix-shadows] [--fix-z] [--fix-copy] [--strict]
+  map_tokens.py scan [<path>] [--config=<cfg>] [--ext=<exts>] [--include-tests] [--fix-shadows] [--fix-z] [--fix-copy] [--strict]
+  map_tokens.py apply [<path>] [--config=<cfg>] [--ext=<exts>] [--include-tests] [--backup] [--fix-shadows] [--fix-z] [--fix-copy] [--strict]
+  map_tokens.py check [<path>] [--config=<cfg>] [--ext=<exts>] [--include-tests] [--fix-shadows] [--fix-z] [--fix-copy] [--strict]
 
 
 Options:
+  --config=<cfg>       Path to .pencil-normalize.config.json (auto-discovered if omitted)
   --ext=<exts>         Comma-separated extensions to include [default: ts,tsx,js,jsx,css,md]
   --include-tests      Include *.test.*, *.spec.* files (default: excluded)
   --backup             When applying, write a .bak copy next to each modified file
   --fix-shadows        Remove Tailwind shadow-* classes from className strings
   --fix-z              Normalize z-index classes to design system tokens
-  --fix-copy           Fix known copy regressions (e.g., "requires refresh")
+  --fix-copy           Fix known copy regressions
   --strict             Enable all fix passes (equivalent to --fix-shadows --fix-z --fix-copy)
 
 Examples:
-  map_tokens.py scan frontend/src
-  map_tokens.py apply frontend/src --backup
-  map_tokens.py check frontend/src/components
-  map_tokens.py scan frontend/src --fix-shadows --fix-z --fix-copy
-  map_tokens.py apply frontend/src --backup --strict
+  map_tokens.py scan src
+  map_tokens.py apply src --backup
+  map_tokens.py check src/components
+  map_tokens.py scan src --fix-shadows --fix-z --fix-copy
+  map_tokens.py apply src --backup --strict
+  map_tokens.py scan --config=path/to/.pencil-normalize.config.json
 """
 
 from __future__ import annotations
 
 import difflib
+import json
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, List, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from docopt import docopt
+
+_CONFIG_FILENAME = ".pencil-normalize.config.json"
+_REQUIRED_CONFIG_FIELDS = ("version", "scan_path", "css_var_map")
+
+
+def _find_config(start: Path) -> Optional[Path]:
+    """Walk from start directory upward looking for .pencil-normalize.config.json."""
+    current = start.resolve()
+    while True:
+        candidate = current / _CONFIG_FILENAME
+        if candidate.is_file():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+
+
+def _load_config(config_path: Path) -> Dict:
+    """Read, parse, and validate a .pencil-normalize.config.json file."""
+    try:
+        raw = config_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"error: cannot read config {config_path}: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        config = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        print(f"error: invalid JSON in {config_path}: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(config, dict):
+        print(f"error: config must be a JSON object, got {type(config).__name__}", file=sys.stderr)
+        sys.exit(1)
+
+    missing = [f for f in _REQUIRED_CONFIG_FIELDS if f not in config]
+    if missing:
+        print(
+            f"error: config {config_path} missing required fields: {', '.join(missing)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if not isinstance(config["css_var_map"], dict):
+        print("error: css_var_map must be a JSON object", file=sys.stderr)
+        sys.exit(1)
+
+    return config
 
 
 @dataclass(frozen=True)
