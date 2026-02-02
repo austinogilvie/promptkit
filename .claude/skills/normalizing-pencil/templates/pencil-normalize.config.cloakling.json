@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "scan_path": "frontend/src",
+  "file_extensions": ["ts", "tsx", "js", "jsx", "css", "md"],
+  "css_var_map": {
+    "--pencil-accent": "--accent-interactive",
+    "--pencil-accent-hover": "--accent-attention",
+    "--pencil-text-primary": "--foreground-primary",
+    "--pencil-text-secondary": "--foreground-secondary",
+    "--pencil-text-muted": "--foreground-muted",
+    "--pencil-bg": "--surface-base",
+    "--pencil-surface": "--surface-level-1",
+    "--pencil-surface-muted": "--surface-level-1",
+    "--pencil-border": "--border-default",
+    "--pencil-border-strong": "--border-strong"
+  },
+  "tailwind_literal_map": {
+    "bg-white": "bg-[var(--surface-level-1)]",
+    "bg-gray-50": "bg-[var(--surface-level-1)]",
+    "text-gray-900": "text-[var(--foreground-primary)]",
+    "text-gray-700": "text-[var(--foreground-secondary)]",
+    "text-gray-600": "text-[var(--foreground-secondary)]",
+    "text-gray-500": "text-[var(--foreground-tertiary)]",
+    "text-gray-400": "text-[var(--foreground-muted)]",
+    "border-gray-200": "border-[color:var(--border-default)]",
+    "border-gray-300": "border-[color:var(--border-strong)]"
+  },
+  "shadow_policy": {
+    "action": "strip",
+    "allowed_shadow": "0 8px 24px -12px rgba(0,0,0,0.18)",
+    "allowed_contexts": ["popover", "dropdown", "tooltip", "modal", "toast"]
+  },
+  "z_index_map": {
+    "z-[9999]": "z-[var(--z-popover)]",
+    "z-[1000]": "z-[var(--z-popover)]",
+    "z-50": "z-[var(--z-popover)]",
+    "z-40": "z-[var(--z-sidebars)]",
+    "z-20": "z-[var(--z-header)]"
+  },
+  "copy_fixes": {
+    "requires refresh": "",
+    "Refresh detection": "Re-run detection"
+  },
+  "extra_scan_patterns": {}
+}

@@ -2,13 +2,8 @@
 
 # Runtime data (don't commit)
 cache/
-config/
 logs/
-metrics/
-artifactTypes
-issue
-issues
-Actionable work items and bug reports
+sessions/
 
 # Backup directories (temporary)
 ../.wrangler-migration-backup-*/
