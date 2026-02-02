@@ -52,7 +52,7 @@ Does NOT do AST refactors (e.g. `<button>` to `<Button>`).
 
 ## Command behavior
 
-1. Run scan: `bash .claude/skills/normalize-pencil/scripts/scan.sh [path]`
+1. Run scan: `bash .claude/skills/normalizing-pencil/scripts/scan.sh [path]`
 2. Run token mapping based on flags:
    - `--apply`: `python3 scripts/map_tokens.py apply [path] --backup`
    - `--check`: `python3 scripts/map_tokens.py check [path]`
