@@ -149,30 +149,19 @@ def _is_allowed_file(p: Path, exts: List[str], include_tests: bool) -> bool:
 
 
 def _build_rules(
+    config: Dict,
     *,
     fix_shadows: bool = False,
     fix_z: bool = False,
     fix_copy: bool = False,
 ) -> Tuple[List[RewriteRule], Callable[[re.Match], str]]:
     """
-    Build rewrite rules.
+    Build rewrite rules from config.
 
-    Keep this mapping small and authoritative.
-    If you add new mappings, also add them to reference.md so humans + Claude agree.
+    All project-specific mappings are read from the config dict.
     """
     # 1) CSS var mapping: var(--pencil-*) -> var(--system-*)
-    css_var_map = {
-        "--pencil-accent": "--accent-interactive",
-        "--pencil-accent-hover": "--accent-attention",
-        "--pencil-text-primary": "--foreground-primary",
-        "--pencil-text-secondary": "--foreground-secondary",
-        "--pencil-text-muted": "--foreground-muted",
-        "--pencil-bg": "--surface-base",
-        "--pencil-surface": "--surface-level-1",
-        "--pencil-surface-muted": "--surface-level-1",
-        "--pencil-border": "--border-default",
-        "--pencil-border-strong": "--border-strong",
-    }
+    css_var_map: Dict[str, str] = config["css_var_map"]
 
     # Regex: var(--pencil-foo) including whitespace tolerance
     css_var_pattern = re.compile(r"var\(\s*(--pencil-[a-zA-Z0-9_-]+)\s*\)")
@@ -185,20 +174,8 @@ def _build_rules(
             return m.group(0)
         return f"var({mapped})"
 
-    # 2) Tailwind literal class replacements (in new code)
-    # Apply only to className strings; we do a conservative plain-text replace for known tokens.
-    # (AST codemod is better later; this is intentionally small and predictable.)
-    tailwind_literal_map = {
-        "bg-white": "bg-[var(--surface-level-1)]",
-        "bg-gray-50": "bg-[var(--surface-level-1)]",
-        "text-gray-900": "text-[var(--foreground-primary)]",
-        "text-gray-700": "text-[var(--foreground-secondary)]",
-        "text-gray-600": "text-[var(--foreground-secondary)]",
-        "text-gray-500": "text-[var(--foreground-tertiary)]",
-        "text-gray-400": "text-[var(--foreground-muted)]",
-        "border-gray-200": "border-[color:var(--border-default)]",
-        "border-gray-300": "border-[color:var(--border-strong)]",
-    }
+    # 2) Tailwind literal class replacements (from config)
+    tailwind_literal_map: Dict[str, str] = config.get("tailwind_literal_map", {})
 
     # Build ordered rules list
     rules: List[RewriteRule] = []
@@ -232,41 +209,29 @@ def _build_rules(
             )
         )
 
-    # Rule D (opt-in): Z-index normalization
+    # Rule D (opt-in): Z-index normalization (from config)
     if fix_z:
-        # (label, regex_fragment, replacement)
-        z_rules = [
-            ("z-[9999]", r"z-\[9999\]", "z-[var(--z-popover)]"),
-            ("z-[1000]", r"z-\[1000\]", "z-[var(--z-popover)]"),
-            ("z-50",     r"z-50",        "z-[var(--z-popover)]"),
-            ("z-40",     r"z-40",        "z-[var(--z-sidebars)]"),
-            ("z-20",     r"z-20",        "z-[var(--z-header)]"),
-        ]
-        for label, src_pat, dst in z_rules:
+        z_index_map: Dict[str, str] = config.get("z_index_map", {})
+        for src, dst in z_index_map.items():
             rules.append(
                 RewriteRule(
-                    name=f"fix-z:{label}",
-                    pattern=re.compile(rf"(?<![\w-]){src_pat}(?![\w-])"),
+                    name=f"fix-z:{src}",
+                    pattern=re.compile(rf"(?<![\w-]){re.escape(src)}(?![\w-])"),
                     replacement=dst,
                 )
             )
 
-    # Rule E (opt-in): Copy regression fixes
+    # Rule E (opt-in): Copy regression fixes (from config)
     if fix_copy:
-        rules.append(
-            RewriteRule(
-                name="fix-copy:requires-refresh",
-                pattern=re.compile(r"(?i)requires refresh"),
-                replacement="",
+        copy_fixes: Dict[str, str] = config.get("copy_fixes", {})
+        for pat, repl in copy_fixes.items():
+            rules.append(
+                RewriteRule(
+                    name=f"fix-copy:{pat}",
+                    pattern=re.compile(rf"(?i){pat}"),
+                    replacement=repl,
+                )
             )
-        )
-        rules.append(
-            RewriteRule(
-                name="fix-copy:refresh-detection",
-                pattern=re.compile(r"(?i)Refresh detection"),
-                replacement="Re-run detection",
-            )
-        )
 
     return rules, css_var_repl
 
@@ -287,6 +252,7 @@ def _collapse_classname_spaces(text: str) -> str:
 
 def _apply_rules(
     text: str,
+    config: Dict,
     *,
     fix_shadows: bool = False,
     fix_z: bool = False,
@@ -294,6 +260,7 @@ def _apply_rules(
 ) -> Tuple[str, List[str]]:
     """Apply all rewrite rules, returning new text and list of applied rule names."""
     rules, css_var_repl = _build_rules(
+        config,
         fix_shadows=fix_shadows,
         fix_z=fix_z,
         fix_copy=fix_copy,
@@ -355,6 +322,7 @@ def _run_scan(
     paths: List[Path],
     exts: List[str],
     include_tests: bool,
+    config: Dict,
     *,
     fix_shadows: bool = False,
     fix_z: bool = False,
@@ -368,7 +336,7 @@ def _run_scan(
             file_fix_copy = fix_copy and fp.suffix.lstrip(".") in _COPY_SAFE_EXTS
             before = _read_text(fp)
             after, applied = _apply_rules(
-                before, fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=file_fix_copy,
+                before, config, fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=file_fix_copy,
             )
             if after == before:
                 continue
@@ -390,6 +358,7 @@ def _run_apply(
     exts: List[str],
     include_tests: bool,
     backup: bool,
+    config: Dict,
     *,
     fix_shadows: bool = False,
     fix_z: bool = False,
@@ -403,7 +372,7 @@ def _run_apply(
             file_fix_copy = fix_copy and fp.suffix.lstrip(".") in _COPY_SAFE_EXTS
             before = _read_text(fp)
             after, _applied = _apply_rules(
-                before, fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=file_fix_copy,
+                before, config, fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=file_fix_copy,
             )
             if after == before:
                 continue
@@ -430,6 +399,7 @@ def _run_check(
     paths: List[Path],
     exts: List[str],
     include_tests: bool,
+    config: Dict,
     *,
     fix_shadows: bool = False,
     fix_z: bool = False,
@@ -443,7 +413,7 @@ def _run_check(
             file_fix_copy = fix_copy and fp.suffix.lstrip(".") in _COPY_SAFE_EXTS
             before = _read_text(fp)
             after, _applied = _apply_rules(
-                before, fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=file_fix_copy,
+                before, config, fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=file_fix_copy,
             )
             if after != before:
                 offenders.append(fp)
@@ -466,7 +436,28 @@ def main(argv: List[str]) -> int:
     cmd_apply = bool(args.get("apply"))
     cmd_check = bool(args.get("check"))
 
-    exts = _parse_exts(args["--ext"])
+    # --- Load config ---
+    config_path_raw = args.get("--config")
+    if config_path_raw:
+        config_path: Optional[Path] = Path(config_path_raw)
+    else:
+        config_path = _find_config(Path.cwd())
+
+    if config_path is None:
+        print(
+            "error: No .pencil-normalize.config.json found. "
+            "Run /normalizing-pencil to initialize.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    config = _load_config(config_path)
+
+    # --- Parse CLI options ---
+    default_exts = config.get("file_extensions", ["ts", "tsx", "js", "jsx", "css", "md"])
+    ext_arg = args["--ext"]
+    exts = _parse_exts(ext_arg) if ext_arg else default_exts
+
     include_tests = bool(args["--include-tests"])
     backup = bool(args.get("--backup"))
 
@@ -475,17 +466,17 @@ def main(argv: List[str]) -> int:
     fix_z = strict or bool(args.get("--fix-z"))
     fix_copy = strict or bool(args.get("--fix-copy"))
 
-    raw_path = args["<path>"] or "frontend/src"
+    raw_path = args["<path>"] or config["scan_path"]
     root = Path(raw_path).expanduser().resolve()
 
     fix_kwargs = dict(fix_shadows=fix_shadows, fix_z=fix_z, fix_copy=fix_copy)
 
     if cmd_scan:
-        return _run_scan([root], exts, include_tests, **fix_kwargs)
+        return _run_scan([root], exts, include_tests, config, **fix_kwargs)
     if cmd_apply:
-        return _run_apply([root], exts, include_tests, backup, **fix_kwargs)
+        return _run_apply([root], exts, include_tests, backup, config, **fix_kwargs)
     if cmd_check:
-        return _run_check([root], exts, include_tests, **fix_kwargs)
+        return _run_check([root], exts, include_tests, config, **fix_kwargs)
 
     print("error: unknown command (expected scan/apply/check)", file=sys.stderr)
     return 2
