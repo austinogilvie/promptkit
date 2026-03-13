@@ -1,13 +1,15 @@
 ---
 name: removing-meta-noise
-description: Strip assistant meta-noise and decision-log chatter from project management assets stored either as local documents or GitHub issues. Produces clean, confident, implementation-ready writing that reads as if written by a domain expert. Invocable only via explicit slash command. Use when scrubbing AI-drafted specs, issues, notes, plans, or memos after interactive chat sessions with AI coding assistants.
-disable-model-invocation: true
+description: Strip assistant meta-noise and decision-log chatter from project management assets stored either as local documents or GitHub issues. Produces clean, confident, implementation-ready writing that reads as if written by a domain expert. Invocable via slash command or implicit discovery by an AI coding agent automatically. Use this to scrub AI-drafted specs, issues, notes, plans, or memos after interactive chat sessions with AI coding assistants.
+disable-model-invocation: false
 argument-hint: "<file-path-or-id>"
 allowed-tools:
   - Glob
   - Read
   - Write
-  - Bash
+  - Edit
+  - "mcp__plugin_wingman_wingman-mcp__issues_*"
+  - Bash(gh *)
 ---
 
 # Remove Meta-Noise from Project Asset
