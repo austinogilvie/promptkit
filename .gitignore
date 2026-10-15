@@ -70,3 +70,6 @@ htmlcov/
 
 # Distribution / packaging
 *.whl
+
+# Claude skills synced from claude.ai (account-specific, regenerated automatically)
+.claude/skills/synced/
