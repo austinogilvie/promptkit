@@ -448,7 +448,9 @@ EOF
         did "created the project \"$PROJECT_TITLE\" ($PROJECT_URL)"
         PROJECT_LINKED=""
         set_marker
-    elif [ -n "$ADOPT" ] && [ -z "$DRY" ]; then
+    elif [ -n "$ADOPT" ] && [ -n "$DRY" ]; then
+        would "adopt the project \"$PROJECT_TITLE\" ($PROJECT_URL): its short description becomes \"$MARKER\""
+    elif [ -n "$ADOPT" ]; then
         set_marker
         did "adopted the project \"$PROJECT_TITLE\" ($PROJECT_URL)"
     else

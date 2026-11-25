@@ -78,6 +78,11 @@ again at step 1: `preflight` says in `next` which step to resume at.
    An existing `settings.json` is merged, never replaced. A file that exists with other content is a conflict
    (exit 11): nothing is written until the person decides.
 
+   **A repo that already has a board and files from an earlier, hand-made copy of this system.** `preflight`
+   exits 10 because the board is not marked as this skill's. Only when the person asks to move that repo onto
+   this skill: `github --adopt N` (N is the board's number; it rewrites the board's short description as the
+   marker), then `files --force` on a clean working tree, which replaces the differing tracked files.
+
    **Updating a repo that already has the system.** `preflight` exits 10 ("already set up") when the repo's
    files match this skill's current ones, and exits 0 with `next: files` when they are out of date. Running
    `files` there replaces the skill's own files with the current ones (`did` says "updated ...") and leaves
