@@ -19,8 +19,11 @@ repo and board ids written into the scripts. The differences, which are the whol
 | `settings.hooks.json` | only the hook wiring and the `issue.sh check` allow rule, plus the push audit |
 
 Only `SKILL.md.tmpl` is rendered. Every other installed file is byte-identical in every repo, so
-`cmp` against `assets/` says whether a repo's copy is current, and rerunning the `files` step is the upgrade
-(`--force` replaces a differing file that git tracks and that has no uncommitted change).
+`cmp` against `assets/` says whether a repo's copy is current, and rerunning the `files` step is the update.
+The step knows the repo is one of its own when the linked board carries the marker and the repo's `board.env`
+names that board; it then replaces its own files that differ, committed or not, except a tracked file with an
+uncommitted change (someone's edit in progress), which stops it with exit 11. In a repo it did not set up, a
+differing file is a conflict, and `--force` replaces only one git tracks with no uncommitted change.
 
 `board.env` holds everything that differs between repos. `bootstrap.sh files` writes five seed values (repo,
 owner, name, default branch, project id) and the installed `issue.sh ids --write` fills in the rest by asking
@@ -65,6 +68,8 @@ None of these creates anything on GitHub. `B` is `scripts/bootstrap.sh`, `T` a s
 - `status_of` in `bootstrap.sh` read `Status=Done Priority=P3` as the status `Done Priority=P3`, so the smoke
   test could not pass on an issue that had a priority. The offline tests never ran `verify`; nothing but a
   live run reaches it.
+- The skill was fixed while the repo's install was still uncommitted, and the `files` step refused to replace
+  its own two out-of-date files. The update rule above came from that.
 - GitHub's issue statuses and "Sync with issue status" (see `github-ui-steps.md`) put a reopened issue in
   Backlog. The smoke test demanded Todo and blamed the person's "Item reopened" setting, which was right.
 

@@ -9,7 +9,8 @@
 #
 # preflight  read-only: the repo, the login, and whether the repo already has a board
 # github     the kind labels, the project, its Status and Priority fields, the link to the repo
-# files      the issues skill, the hooks, the issue templates, board.env and the hook wiring in .claude/settings.json
+# files      the issues skill, the hooks, the issue templates, board.env and the hook wiring in .claude/settings.json;
+#            in a repo this skill set up before, it replaces its own files that are out of date (the update)
 # verify     the board's workflows (set by a person in GitHub's web UI), and with --smoke one real issue cycled
 #            through the board
 # render     the files step into any directory from a board.env, with no GitHub call: the offline test
@@ -79,6 +80,7 @@ gql() { # query, variables as JSON -> the response; gh exits non-zero on a Graph
 [ $# -ge 1 ] || usage
 STEP=$1; shift
 REPO_PATH=. REMOTE=origin TITLE="" FLOW=pr ADOPT="" FORCE="" SMOKE="" DRY="" CONFIG_FILE="" DEST=""
+PRIOR="" # set by the files step when the repo already holds this skill's install for this board: a rerun is an update
 while [ $# -gt 0 ]; do
     case $1 in
         --repo=* | --remote=* | --title=* | --flow=* | --adopt=* | --config=* | --dest=*)
@@ -283,16 +285,18 @@ merged_settings() { # the current settings.json (or {}) on stdin -> it with the 
 }
 
 place_files() { # destination root, flow -> the files placed (or, under --dry-run, said); conflicts stop it first
-    local dest=$1 flow=$2 mode src to rendered settings cur new
+    local dest=$1 flow=$2 mode src to rendered settings cur new verb
     rendered=$(mktemp); render_skill >"$rendered"
     # 1. what is already there and differs: said before anything is written
+    local differs="exists and differs from the one this skill installs"
+    [ -z "$PRIOR" ] || differs="has an uncommitted change and differs from the current one; commit or discard the change, then run this again"
     while IFS='|' read -r mode src to; do
         [ "$mode" = same ] && [ -f "$dest/$to" ] && ! cmp -s "$ASSETS/$src" "$dest/$to" || continue
-        replaceable "$dest" "$to" || conflict "$to exists and differs from the one this skill installs"
+        replaceable "$dest" "$to" || conflict "$to $differs"
     done <<<"$(file_plan "$flow")"
     to=.claude/skills/issues/SKILL.md
     if [ -f "$dest/$to" ] && ! cmp -s "$rendered" "$dest/$to"; then
-        replaceable "$dest" "$to" || conflict "$to exists and differs from the one this skill installs"
+        replaceable "$dest" "$to" || conflict "$to $differs"
     fi
     settings=$dest/.claude/settings.json
     if [ -f "$settings" ]; then
@@ -303,6 +307,7 @@ place_files() { # destination root, flow -> the files placed (or, under --dry-ru
     fi
     if [ -n "$CONFLICTS" ]; then
         rm -f "$rendered"
+        [ -z "$PRIOR" ] || decide "this repo's install can be updated once the files above have no uncommitted change"
         decide "these files already exist with other content. Move them aside, or commit them and run again with --force to replace the ones git can restore"
     fi
     # 2. place
@@ -311,16 +316,21 @@ place_files() { # destination root, flow -> the files placed (or, under --dry-ru
             if [ "$mode" = keep ] && ! cmp -s "$ASSETS/$src" "$dest/$to"; then skip "$to (yours is kept)"; else skip "$to (already in place)"; fi
             continue
         fi
-        if [ -n "$DRY" ]; then would "write $to"; continue; fi
+        verb="write"; [ ! -f "$dest/$to" ] || verb="update"
+        if [ -n "$DRY" ]; then would "$verb $to"; continue; fi
         mkdir -p "$(dirname "$dest/$to")"
         cp "$ASSETS/$src" "$dest/$to"
         case $to in *.sh) chmod 755 "$dest/$to" ;; esac
-        did "wrote $to"
+        if [ "$verb" = update ]; then did "updated $to"; else did "wrote $to"; fi
     done <<<"$(file_plan "$flow")"
     to=.claude/skills/issues/SKILL.md
+    verb="write"; [ ! -f "$dest/$to" ] || verb="update"
     if [ -f "$dest/$to" ] && cmp -s "$rendered" "$dest/$to"; then skip "$to (already in place)"
-    elif [ -n "$DRY" ]; then would "write $to"
-    else mkdir -p "$(dirname "$dest/$to")"; cp "$rendered" "$dest/$to"; did "wrote $to"; fi
+    elif [ -n "$DRY" ]; then would "$verb $to"
+    else
+        mkdir -p "$(dirname "$dest/$to")"; cp "$rendered" "$dest/$to"
+        if [ "$verb" = update ]; then did "updated $to"; else did "wrote $to"; fi
+    fi
     rm -f "$rendered"
     # 3. the hook wiring
     new=$(merged_settings <<<"$cur")
@@ -335,9 +345,18 @@ place_files() { # destination root, flow -> the files placed (or, under --dry-ru
     fi
 }
 
-replaceable() { # root, path -> whether --force may replace the file: git tracks it and it has no uncommitted change
-    [ -n "$FORCE" ] || return 1
-    git -C "$1" ls-files --error-unmatch -- "$2" >/dev/null 2>&1 && git -C "$1" diff --quiet HEAD -- "$2" 2>/dev/null
+replaceable() { # root, path -> whether a file of ours that is there with other content may be replaced
+    # In a repo this skill already set up (PRIOR), its own files are replaced by the current ones: that is the
+    # update. The exception is a file git tracks that has an uncommitted change, which is someone's edit in
+    # progress. Anywhere else the file is not known to be ours, and only --force replaces it, and only when git
+    # tracks it with no uncommitted change, so git can bring it back.
+    local tracked=""
+    git -C "$1" ls-files --error-unmatch -- "$2" >/dev/null 2>&1 && tracked=1
+    if [ -n "$PRIOR" ]; then
+        [ -z "$tracked" ] || git -C "$1" diff --quiet HEAD -- "$2" 2>/dev/null
+        return
+    fi
+    [ -n "$FORCE" ] && [ -n "$tracked" ] && git -C "$1" diff --quiet HEAD -- "$2" 2>/dev/null
 }
 
 files_ready() { # whether every file the system needs is in place in ROOT and the hooks are wired
@@ -509,14 +528,19 @@ step_files() {
     [ -z "$ignored" ] || decide "git ignores these paths, so the setup would not reach anyone else: $ignored. Change .gitignore and run this again"
 
     local env=$ROOT/.claude/skills/issues/board.env
-    if [ -f "$env" ] && [ "$BOARD" = ours ] && ! grep -q "^PROJECT_ID=$PROJECT_ID\$" "$env"; then
-        replaceable "$ROOT" .claude/skills/issues/board.env \
-            || conflict ".claude/skills/issues/board.env points at another project board"
+    if [ -f "$env" ] && [ "$BOARD" = ours ]; then
+        if grep -q "^PROJECT_ID=$PROJECT_ID\$" "$env"; then
+            PRIOR=1 # this repo already holds the install for this board: files of ours that differ are out of date
+            ok "this repo was set up by this skill before; its files are brought up to date"
+        else
+            replaceable "$ROOT" .claude/skills/issues/board.env \
+                || conflict ".claude/skills/issues/board.env points at another project board"
+        fi
     fi
     place_files "$ROOT" "$FLOW"
 
     if [ -n "$DRY" ]; then
-        would "write .claude/skills/issues/board.env with the board's ids"
+        [ -n "$PRIOR" ] || would "write .claude/skills/issues/board.env with the board's ids"
         STATE=dry-run; finish 0
     fi
     if [ -f "$env" ] && grep -q "^PROJECT_ID=$PROJECT_ID\$" "$env"; then :; else write_seed_env "$env"; fi
