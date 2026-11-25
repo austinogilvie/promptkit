@@ -60,6 +60,14 @@ None of these creates anything on GitHub. `B` is `scripts/bootstrap.sh`, `T` a s
    `git status` clean.
 7. `python3 ../skill-creator/scripts/quick_validate.py .` from the skill's folder.
 
+## Found on the first live run (sixthirty-aikit, 2026-11-25)
+
+- `status_of` in `bootstrap.sh` read `Status=Done Priority=P3` as the status `Done Priority=P3`, so the smoke
+  test could not pass on an issue that had a priority. The offline tests never ran `verify`; nothing but a
+  live run reaches it.
+- GitHub's issue statuses and "Sync with issue status" (see `github-ui-steps.md`) put a reopened issue in
+  Backlog. The smoke test demanded Todo and blamed the person's "Item reopened" setting, which was right.
+
 ## Known limits
 
 - github.com only; a GitHub Enterprise host is refused at preflight.

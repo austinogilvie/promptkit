@@ -533,13 +533,14 @@ step_files() {
 }
 
 status_of() { # issue number -> its Status on the board, or nothing
-    /bin/bash "$ROOT/.claude/skills/issues/scripts/issue.sh" board "$1" 2>/dev/null | sed -n 's/.*Status=\(.*\)$/\1/p'
+    # fields come space-separated in any order ("Status=Done Priority=P3"); "In Progress" is the one value with a space
+    /bin/bash "$ROOT/.claude/skills/issues/scripts/issue.sh" board "$1" 2>/dev/null | sed -nE 's/.*Status=(In Progress|[^ ]+).*/\1/p'
 }
 
-wait_status() { # issue number, wanted status, seconds -> whether the board shows it in time
+wait_status() { # issue number, wanted statuses separated by |, seconds -> whether the board shows one of them in time
     local i
     for ((i = 0; i < $3; i += 5)); do
-        [ "$(status_of "$1")" = "$2" ] && return 0
+        [[ "|$2|" == *"|$(status_of "$1")|"* ]] && return 0
         sleep 5
     done
     return 1
@@ -568,7 +569,7 @@ step_verify() {
     if [ -z "$SMOKE" ]; then
         unverified "that new issues in $REPO are added to the board by themselves (the auto-add workflow's repository and filter)"
         unverified "that closing an issue sets Status to Done"
-        unverified "that reopening an issue sets Status to Todo"
+        unverified "that reopening an issue moves it out of Done"
         STATE=done-unverified; finish 0
     fi
 
@@ -595,7 +596,7 @@ Track work for this repo as GitHub Issues on the project board $PROJECT_URL.
 
 ### Done when
 
-- [x] This issue reached the board by itself, went to Done when closed and to Todo when reopened.
+- [x] This issue reached the board by itself, went to Done when closed and left Done when reopened.
 EOF
         url=$(gh issue create --repo "$REPO" --label task --title "$SMOKE_TITLE" --body-file "$body")
         rm -f "$body"; n=${url##*/}
@@ -619,15 +620,17 @@ EOF
         STATE=needs-github-ui; finish 12
     fi
     ok "closing #$n set Status to Done"
+    # Reopened, the item must leave Done. Which open status it lands in is GitHub's to say: Todo from the "Item
+    # reopened" workflow, or, on a board with "Sync with issue status" on, the issue's own status, which is Backlog.
     gh issue reopen "$n" --repo "$REPO" >/dev/null
-    if ! wait_status "$n" Todo 60; then
-        todo "reopening #$n did not set Status to Todo: open \"Item reopened\" at $PROJECT_URL/workflows, set Status to Todo, save and switch it on, then run verify --smoke again"
+    if ! wait_status "$n" "Todo|Backlog" 60; then
+        todo "reopening #$n left it in $(status_of "$n") on the board: open \"Item reopened\" at $PROJECT_URL/workflows, set Status to Todo, save and switch it on, then run verify --smoke again"
         STATE=needs-github-ui; finish 12
     fi
-    ok "reopening #$n set Status to Todo"
+    ok "reopening #$n moved it out of Done, to $(status_of "$n")"
     gh issue close "$n" --repo "$REPO" --reason completed >/dev/null
     wait_status "$n" Done 60 || warn "#$n is closed again but the board does not show Done yet"
-    did "cycled #$n through the board: added by itself, Done on close, Todo on reopen"
+    did "cycled #$n through the board: added by itself, Done on close, out of Done on reopen"
     local report
     if report=$(/bin/bash "$ROOT/.claude/skills/issues/scripts/issue.sh" check 2>&1); then
         ok "issue.sh check: $(tail -1 <<<"$report")"
